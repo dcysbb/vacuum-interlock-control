@@ -32,7 +32,12 @@ ENGINE = InterlockEngine(CONFIG, HISTORY)
 SESSIONS: dict[str, float] = {}
 LOGIN_ATTEMPTS: dict[str, deque[float]] = defaultdict(deque)
 SESSION_COOKIE = "vacuum_interlock_session"
-FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+_bundle_root = getattr(sys, "_MEIPASS", None)
+FRONTEND_DIST = (
+    Path(_bundle_root) / "frontend" / "dist"
+    if _bundle_root
+    else Path(__file__).resolve().parents[2] / "frontend" / "dist"
+)
 
 
 class SimulationFault(BaseModel):

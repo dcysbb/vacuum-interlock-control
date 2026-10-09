@@ -61,7 +61,9 @@ jobs:
         run: |
           $env:VACUUM_INTERLOCK_DATA_DIR = Join-Path $env:RUNNER_TEMP 'vacuum-interlock-smoke'
           $app = Join-Path $env:GITHUB_WORKSPACE 'backend\dist\VacuumInterlock\VacuumInterlock.exe'
-          $process = Start-Process -FilePath $app -PassThru -WindowStyle Hidden
+          $stdout = Join-Path $env:RUNNER_TEMP 'vacuum-interlock-stdout.log'
+          $stderr = Join-Path $env:RUNNER_TEMP 'vacuum-interlock-stderr.log'
+          $process = Start-Process -FilePath $app -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr
           try {
             $ready = $false
             for ($i = 0; $i -lt 30; $i++) {
@@ -71,7 +73,12 @@ jobs:
                 if ($health.ok -and $page.Content.Contains('真空联锁控制台')) { $ready = $true; break }
               } catch { Start-Sleep -Seconds 1 }
             }
-            if (-not $ready) { throw 'Packaged server did not serve the health API and frontend.' }
+            if (-not $ready) {
+              $details = @()
+              if (Test-Path $stdout) { $details += Get-Content $stdout -Raw }
+              if (Test-Path $stderr) { $details += Get-Content $stderr -Raw }
+              throw "Packaged server did not serve the health API and frontend.`n$($details -join [Environment]::NewLine)"
+            }
           } finally {
-            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
           }
